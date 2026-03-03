@@ -1,11 +1,12 @@
-while a <= 5 {
-    if
-}
-if
-else
-func
-true
-false
+x = 5
+y = 1
 
-abc = "abc"
-def = 69 + 420
+if x == 5 {
+    print("YES")
+    x = 6
+    z = 10
+} else {
+    print("NO")
+}
+
+print(x * x)

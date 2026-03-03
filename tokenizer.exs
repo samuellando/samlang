@@ -2,6 +2,12 @@ defmodule Token do
   defstruct type: :openCurly, value: "", row: 0, col: 0
 end
 
+defimpl String.Chars, for: Token do
+  def to_string(t) do 
+    "#{t.type} #{t.value} at #{t.row}:#{t.col}"
+  end
+end
+
 defmodule Tokenizer do
   def tokenize(s) do 
     _tokenize(String.to_charlist(s), 1, 1)
@@ -25,6 +31,7 @@ defmodule Tokenizer do
       [?i,?f|rest] -> {%Token{type: :keyword, value: "if", row: row, col: col}, row, col+2, rest} 
       [?e,?l,?s,?e|rest] -> {%Token{type: :keyword, value: "else", row: row, col: col}, row, col+4, rest} 
       [?f,?u,?n,?c|rest] -> {%Token{type: :keyword, value: "func", row: row, col: col}, row, col+4, rest} 
+      [?r,?e,?t,?u,?r,?n|rest] -> {%Token{type: :keyword, value: "return", row: row, col: col}, row, col+6, rest} 
       [?t,?r,?u,?e|rest] -> {%Token{type: :keyword, value: "true", row: row, col: col}, row, col+4, rest} 
       [?f,?a,?l,?s,?e|rest] -> {%Token{type: :keyword, value: "false", row: row, col: col}, row, col+5, rest} 
       _ -> {nil, row, col, chars}
@@ -38,21 +45,8 @@ defmodule Tokenizer do
   defp scan_non_keyword_token([?\t|rest], row, col) do
       {nil, row, col+1, rest}
   end
-  defp scan_non_keyword_token([?\n|rest], row, _) do
-      {nil, row+1, 1, rest}
-  end
-  # Multi character operators
-  defp scan_non_keyword_token([?=,?=|rest], row, col) do
-      {%Token{type: :equal, row: row, col: col}, row, col+1, rest}
-  end
-  defp scan_non_keyword_token([?!,?=|rest], row, col) do
-      {%Token{type: :notEqual, row: row, col: col}, row, col+1, rest}
-  end
-  defp scan_non_keyword_token([?>,?=|rest], row, col) do
-      {%Token{type: :ge, row: row, col: col}, row, col+1, rest}
-  end
-  defp scan_non_keyword_token([?<,?=|rest], row, col) do
-      {%Token{type: :le, row: row, col: col}, row, col+1, rest}
+  defp scan_non_keyword_token([?\n|rest], row, col) do
+      {%Token{type: :newLine, row: row, col: col}, row+1, 1, rest}
   end
   # Multi character sequences 
   defp scan_non_keyword_token([?"|rest], row, col) do
@@ -83,29 +77,42 @@ defmodule Tokenizer do
   defp scan_non_keyword_token([?)|rest], row, col) do
       {%Token{type: :closePar, row: row, col: col}, row, col+1, rest}
   end
+  # operators
+  defp scan_non_keyword_token([?=,?=|rest], row, col) do
+      {%Token{type: :equal, value: "==", row: row, col: col}, row, col+1, rest}
+  end
+  defp scan_non_keyword_token([?!,?=|rest], row, col) do
+      {%Token{type: :notEqual, value: "!=", row: row, col: col}, row, col+1, rest}
+  end
+  defp scan_non_keyword_token([?>,?=|rest], row, col) do
+      {%Token{type: :ge, value: ">=", row: row, col: col}, row, col+1, rest}
+  end
+  defp scan_non_keyword_token([?<,?=|rest], row, col) do
+      {%Token{type: :le, value: "<=", row: row, col: col}, row, col+1, rest}
+  end
   defp scan_non_keyword_token([?>|rest], row, col) do
-      {%Token{type: :greater, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :greater, value: ">", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?<|rest], row, col) do
-      {%Token{type: :less, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :less, value: "<", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?+|rest], row, col) do
-      {%Token{type: :add, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :add, value: "+", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?-|rest], row, col) do
-      {%Token{type: :sub, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :sub, value: "-", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?/|rest], row, col) do
-      {%Token{type: :div, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :div, value: "/", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?*|rest], row, col) do
-      {%Token{type: :mul, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :mul, value: "*", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?=|rest], row, col) do
-      {%Token{type: :assign, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :assign, value: "=", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([?,|rest], row, col) do
-      {%Token{type: :coma, row: row, col: col}, row, col+1, rest}
+      {%Token{type: :coma, value: ",", row: row, col: col}, row, col+1, rest}
   end
   defp scan_non_keyword_token([c|_], row, col) do
     raise "Unexpected token #{c} at #{row}:#{col}"
