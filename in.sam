@@ -1,12 +1,12 @@
-x = 5
-y = 1
+x = 0
 
-if x == 5 {
-    print("YES")
-    x = 6
-    z = 10
-} else {
-    print("NO")
+func a() {
+    c = x
+    func b() {
+        c = c + 1
+        return c
+    }
+    return b
 }
 
-print(x * x)
+counter = a()

@@ -6,4 +6,8 @@ Code.require_file("interpreter.exs", __DIR__)
 {:ok, s} = File.read(f)
 tokens = Tokenizer.tokenize(s)
 ast = Parser.parse(tokens)
-Interpreter.run(ast)
+
+{us, _} = :timer.tc(fn ->
+  Interpreter.run(ast)
+end)
+IO.puts("execution time: #{us / 1_000_000}s")

@@ -10,6 +10,10 @@ defmodule Assignment do
   defstruct identifier: %Token{type: :identifier}, expression: %Expression{}
 end
 
+defmodule Allocation do
+  defstruct identifier: %Token{type: :identifier}, expression: %Expression{}
+end
+
 defmodule If do
   defstruct condition: %Expression{}, statements: [], elseStatements: []
 end
@@ -56,6 +60,7 @@ defmodule Parser do
       [%Token{type: :keyword, value: "if"}|_] -> parse_if(l)
       [%Token{type: :keyword, value: "return"}|_] -> parse_return(l)
       [%Token{type: :identifier}, %Token{type: :assign}|_] -> parse_assignment(l)
+      [%Token{type: :identifier}, %Token{type: :alloc}|_] -> parse_allocation(l)
       [%Token{type: :identifier}, %Token{type: :openPar}|_] -> parse_function_call(l)
       _ -> raise "Unexpected token #{hd(l)}"
     end
@@ -71,6 +76,18 @@ defmodule Parser do
   end
   defp parse_assignment([t|_]) do
     raise "Assignments should be of the form: identifier = expression: #{t}"
+  end
+
+  defp parse_allocation([id, %Token{type: :alloc}|rest]) do
+    try do
+      {exp, rest} = parse_expression(rest)
+      {%Allocation{identifier: id, expression: exp}, rest}
+    catch 
+      err -> raise "Failed to parse Allocation #{id} #{err}"
+    end
+  end
+  defp parse_allocation([t|_]) do
+    raise "Allocations should be of the form: identifier = expression: #{t}"
   end
 
   defp parse_expression(l) do
@@ -185,8 +202,11 @@ defmodule Parser do
   defp _parse_parameters([p = %Token{type: :identifier}, %Token{type: :closePar}|rest]) do
     {[p], rest}
   end
+  defp _parse_parameters([%Token{type: :closePar}|rest]) do
+    {[], rest}
+  end
   defp _parse_parameters(_) do 
-    raise "expected <identifier><coma> or <identifier><closeParenthesis> in argument list"
+    raise "expected <identifier><coma> or <identifier><closeParenthesis> in parameter list"
   end
 
   defp parse_arguments([t = %Token{type: :openPar}|rest]) do
