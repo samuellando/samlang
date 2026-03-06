@@ -153,8 +153,6 @@ defmodule Interpreter do
 
   defp execute_func(s, state) do
     call_f =  fn args, state ->
-      IO.inspect(s.identifier)
-      IO.inspect(state.environment)
       if length(args) != length(s.parameters) do
         raise "Incorrect number of args for #{s.identifier}"
       end

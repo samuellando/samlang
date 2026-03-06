@@ -16,6 +16,7 @@ defmodule Tokenizer do
   defp _tokenize([], _, _), do: []
 
   defp _tokenize(chars, row, col) do
+    {chars, row, col} = scan_over_comment(chars, row, col)
     case scan_keyword_token(chars, row, col) do
       {nil, _, _, _} -> case scan_non_keyword_token(chars, row, col) do
         {nil, row, col, rest} -> _tokenize(rest, row, col)
@@ -158,5 +159,18 @@ defmodule Tokenizer do
   defp _scan_string([c|rest], row) do
     {s, rest} = _scan_string(rest, row)
     {[c|s], rest}
+  end
+
+  defp scan_over_comment(l, row, col) do
+    case l do
+      [?/,?/|rest] -> {_scan_over_comment(rest), row+1, 1}
+      _ -> {l, row, col}
+    end
+  end
+  defp _scan_over_comment(l =[?\n|_]) do
+    l
+  end
+  defp _scan_over_comment([_|rest]) do
+    _scan_over_comment(rest)
   end
 end

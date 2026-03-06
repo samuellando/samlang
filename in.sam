@@ -1,12 +1,12 @@
-x = 0
+x := 0
 
 func a() {
-    c = x
-    func b() {
-        c = c + 1
-        return c
-    }
-    return b
+    x = x + 1
+    return x
 }
 
-counter = a()
+i = 0 // test
+while i < 10 {
+    print(a())
+    i = i + 1
+}
