@@ -61,8 +61,10 @@ defmodule Parser do
       [%Token{type: :keyword, value: "return"}|_] -> parse_return(l)
       [%Token{type: :identifier}, %Token{type: :assign}|_] -> parse_assignment(l)
       [%Token{type: :identifier}, %Token{type: :alloc}|_] -> parse_allocation(l)
-      [%Token{type: :identifier}, %Token{type: :openPar}|_] -> parse_function_call(l)
-      _ -> raise "Unexpected token #{hd(l)}"
+      _ -> case parse_expression(l) do
+        {nil, [t|_]} -> raise "Unexpected token #{t}"
+        {s, rest} -> {s, rest}
+      end
     end
   end
 

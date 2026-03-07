@@ -168,16 +168,12 @@ defmodule Interpreter do
     State.set_environment(state, s.identifier.value, call_f)
   end
 
-  defp execute_call(id, args, state) do
-    case State.get_environment(state, id.value) do
-      nil -> raise "Function #{id} is not defined"
-      f -> 
-        if !is_function(f) do 
-          raise "#{id} is not callable, got #{f}"
-        end
-        args = Enum.map(args, fn exp -> execute_expression(exp, state) end)
-        f.(args, state)
-    end
+  defp execute_call(f, args, state) do
+      if !is_function(f) do 
+        raise "Not callable, got #{f}"
+      end
+      args = Enum.map(args, fn exp -> execute_expression(exp, state) end)
+      f.(args, state)
   end
 
   defp execute_return(s, state) do
@@ -189,6 +185,7 @@ defmodule Interpreter do
     case s do
       %Expression{a: a, b: nil, op: nil} -> execute_expression(a, state)
       %Expression{a: a, b: nil, op: %Call{arguments: args}} -> 
+        a = execute_expression(a, state)
         execute_call(a, args, state)
       %Expression{a: a, b: nil, op: op} -> 
         a = execute_expression(a, state)
