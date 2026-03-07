@@ -16,6 +16,8 @@ defmodule State do
       "<=" => fn a, b -> a <= b end,
       ">" => fn a, b -> a > b end,
       "<" => fn a, b -> a < b end,
+      "!" => fn a -> !a  end,
+      "%" => fn a, b -> rem(a, b) end,
     }
     %State{statements: statements, environment: funcs}
   end
@@ -110,8 +112,8 @@ defmodule Interpreter do
       %If{} -> execute_if(statement, state)
       %While{} -> execute_while(statement, state)
       %Func{} -> execute_func(statement, state)
-      %Call{} -> 
-        execute_call(statement, state)
+      %Expression{} -> 
+        execute_expression(statement, state)
         state
       %Return{} -> execute_return(statement, state)
       _ -> raise "Cirtical, expected a statement #{statement}"
@@ -166,14 +168,14 @@ defmodule Interpreter do
     State.set_environment(state, s.identifier.value, call_f)
   end
 
-  defp execute_call(s, state) do
-    case State.get_environment(state, s.identifier.value) do
-      nil -> raise "Function #{s.identifier} is not defined"
+  defp execute_call(id, args, state) do
+    case State.get_environment(state, id.value) do
+      nil -> raise "Function #{id} is not defined"
       f -> 
         if !is_function(f) do 
-          raise "#{s.identifier} is not callable, got #{f}"
+          raise "#{id} is not callable, got #{f}"
         end
-        args = Enum.map(s.arguments, fn exp -> execute_expression(exp, state) end)
+        args = Enum.map(args, fn exp -> execute_expression(exp, state) end)
         f.(args, state)
     end
   end
@@ -186,11 +188,15 @@ defmodule Interpreter do
   defp execute_expression(s, state) do
     case s do
       %Expression{a: a, b: nil, op: nil} -> execute_expression(a, state)
+      %Expression{a: a, b: nil, op: %Call{arguments: args}} -> 
+        execute_call(a, args, state)
+      %Expression{a: a, b: nil, op: op} -> 
+        a = execute_expression(a, state)
+        State.get_environment(state, op.value).(a)
       %Expression{a: a, b: b, op: op} -> 
         a = execute_expression(a, state)
         b = execute_expression(b, state)
         State.get_environment(state, op.value).(a, b)
-      %Call{} -> execute_call(s, state)
       t = %Token{type: :identifier, value: name} -> case State.get_environment(state, name) do
         nil -> raise "Variable #{t} is not defined"
         v -> v

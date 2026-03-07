@@ -1,12 +1,16 @@
 x := 0
-
 func a() {
-    x = x + 1
-    return x
+    func b() {
+        x = x + 1
+        return x
+    }
+    return b
 }
 
-i = 0 // test
-while i < 10 {
-    print(a())
+f = a()
+
+i = 0
+while i < 100 {
+    print(f())
     i = i + 1
 }

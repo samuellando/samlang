@@ -27,7 +27,7 @@ defmodule Func do
 end
 
 defmodule Call do
-  defstruct identifier: %Token{type: :identifier}, arguments: []
+  defstruct arguments: []
 end
 
 defmodule Return do
@@ -90,92 +90,141 @@ defmodule Parser do
     raise "Allocations should be of the form: identifier = expression: #{t}"
   end
 
-  defp parse_expression(l) do
-    case parse_operand(l) do
-      {a, rest} when a != nil -> case rest do 
-        [%Token{type: :newLine}|rest] -> {%Expression{a: a}, rest}
-        [%Token{type: :openCurly}|_] -> {%Expression{a: a}, rest}
-        [%Token{type: :closeCurly}|_] -> {%Expression{a: a}, rest}
-        [%Token{type: :closePar}|_] -> {%Expression{a: a}, rest}
-        [%Token{type: :coma}|_] -> {%Expression{a: a}, rest}
-        [] -> {a, rest}
-        _ -> case parse_operator(rest) do
-          {op, rest} when op != nil -> 
-            {b, rest} = parse_expression(rest)
-            {%Expression{a: a, b: b, op: op}, rest}
-          _ -> raise "Unexpected #{hd(rest)}"
-          end
+  def parse_expression(l = [t|_]) do
+    case parse_equality(l) do
+      {nil, _} -> raise "Expected an expression #{t}"
+      {exp, rest} -> {exp, rest}
+    end
+  end
+
+  defp parse_equality(l) do
+    case parse_comparison(l) do
+      {nil, rest} -> {nil, rest}
+      {a, rest} -> case parse_equality_op(rest) do
+        {nil, rest} -> {a, rest}
+        {op, rest} -> case parse_comparison(rest) do
+          {nil, _} -> raise "Expected expression after #{op}"
+          {b, rest} -> {%Expression{a: a, b: b, op: op}, rest}
         end
-      _ -> case l do
-        [t = %Token{type: :openPar}|rest] -> case parse_expression(rest) do
-          {ex, rest} -> case rest do
-            [%Token{type: :closePar}|rest] -> case rest do
-              [%Token{type: :newLine}|rest] -> {ex, rest}
-              [%Token{type: :closeCurly}|_] -> {ex, rest}
-              [%Token{type: :openCurly}|_] -> {ex, rest}
-              [%Token{type: :closePar}|_] -> {ex, rest}
-              [%Token{type: :coma}|_] -> {ex, rest}
-              [] -> {ex, rest}
-              _ -> case parse_operator(rest) do
-                {op, rest} when op != nil -> 
-                  {b, rest} = parse_expression(rest)
-                  {%Expression{a: ex, b: b, op: op}, rest}
-                _ -> 
-                  [t|_] = rest
-                  raise "Unexpected #{t}"
-                end
-              end
-            _ -> raise "Missing matching parenthesis for #{t}"
-          end
-        end
-        _ -> raise "Expected at least one operand in expression #{hd(l)}"
       end
     end
   end
 
-  defp parse_operand([]) do
-    {nil, []}
+  defp parse_equality_op(l = [t|rest]) do 
+    case t do
+      %Token{type: :equal} -> {t, rest}
+      %Token{type: :notEqual} -> {t, rest}
+      _ -> {nil, l}
+    end
   end
-  defp parse_operand(l) do
-    case parse_function_call(l) do
-      {nil, rest} -> case l do
-        [t = %Token{type: :number}|rest] -> {String.to_integer(t.value), rest}
-        [t = %Token{type: :string}|rest] -> {t.value, rest}
-        [%Token{type: :keyword, value: "true"}|rest] -> {true, rest}
-        [%Token{type: :keyword, value: "false"}|rest] -> {false, rest}
-        [t = %Token{type: :identifier}|rest] -> {t, rest}
-        _ -> {nil, rest}
+
+  defp parse_comparison(l) do
+    case parse_term(l) do
+      {nil, rest} -> {nil, rest}
+      {a, rest} -> case parse_comparison_op(rest) do
+        {nil, rest} -> {a, rest}
+        {op, rest} -> case parse_term(rest) do
+          {nil, _} -> raise "Expected expression after #{op}"
+          {b, rest} -> {%Expression{a: a, b: b, op: op}, rest}
+        end
       end
-      {c, rest} -> {c, rest}
     end
   end
 
-  defp parse_function_call(l = [id = %Token{type: :identifier}|rest]) do
-    case parse_arguments(rest) do
-      {nil, _} -> {nil, l}
-      {args, rest} -> {%Call{identifier: id, arguments: args}, rest}
+  defp parse_comparison_op(l = [t|rest]) do 
+    case t do
+      %Token{type: :less} -> {t, rest}
+      %Token{type: :greater} -> {t, rest}
+      %Token{type: :ge} -> {t, rest}
+      %Token{type: :le} -> {t, rest}
+      _ -> {nil, l}
     end
-
-  end
-  defp parse_function_call(l) do
-    {nil, l}
   end
 
-  defp parse_operator([]) do
-    {nil, []}
+  defp parse_term(l) do
+    case parse_factor(l) do
+      {nil, rest} -> {nil, rest}
+      {a, rest} -> case parse_term_op(rest) do
+        {nil, rest} -> {a, rest}
+        {op, rest} -> case parse_factor(rest) do
+          {nil, _} -> raise "Expected expression after #{op}"
+          {b, rest} -> {%Expression{a: a, b: b, op: op}, rest}
+        end
+      end
+    end
   end
-  defp parse_operator([t|rest]) do
+
+  defp parse_term_op(l = [t|rest]) do 
     case t do
       %Token{type: :add} -> {t, rest}
       %Token{type: :sub} -> {t, rest}
-      %Token{type: :div} -> {t, rest}
+      _ -> {nil, l}
+    end
+  end
+
+  defp parse_factor(l) do
+    case parse_unary(l) do
+      {nil, rest} -> {nil, rest}
+      {a, rest} -> case parse_factor_op(rest) do
+        {nil, rest} -> {a, rest}
+        {op, rest} -> case parse_unary(rest) do
+          {nil, _} -> raise "Expected expression after #{op}"
+          {b, rest} -> {%Expression{a: a, b: b, op: op}, rest}
+        end
+      end
+    end
+  end
+
+  defp parse_factor_op(l = [t|rest]) do 
+    case t do
       %Token{type: :mul} -> {t, rest}
-      %Token{type: :equal} -> {t, rest}
-      %Token{type: :greater} -> {t, rest}
-      %Token{type: :less} -> {t, rest}
-      %Token{type: :ge} -> {t, rest}
-      %Token{type: :le} -> {t, rest}
-      _ -> {nil, rest}
+      %Token{type: :div} -> {t, rest}
+      _ -> {nil, l}
+    end
+  end
+
+  defp parse_unary(l) do
+    case parse_unary_op(l) do
+      {nil, rest} -> parse_function_call(rest)
+      {op, rest} -> case parse_unary(rest) do
+          {nil, _} -> raise "Expected expression after #{op}"
+          {a, rest} -> {%Expression{a: a, op: op}, rest}
+      end
+    end
+  end
+
+  defp parse_unary_op(l = [t|rest]) do 
+    case t do
+      %Token{type: :not} -> {t, rest}
+      _ -> {nil, l}
+    end
+  end
+
+  defp parse_function_call(l) do
+    case parse_value(l) do
+      {nil, rest} -> {nil, rest}
+      {a, rest} -> case parse_arguments(rest) do
+        {nil, rest} -> {a, rest}
+        {args, rest} -> {%Expression{a: a, op: %Call{arguments: args}}, rest}
+      end
+    end
+  end
+
+  defp parse_value(l = [t|rest]) do
+    case t do
+      %Token{type: :identifier} -> {t, rest}
+      %Token{type: :string} -> {t.value, rest}
+      %Token{type: :number} -> {t.value, rest}
+      %Token{type: :keyword, value: true} -> {t.value, rest}
+      %Token{type: :keyword, value: false} -> {t.value, rest}
+      %Token{type: :openPar} -> case parse_expression(rest) do
+        {nil, _} -> raise "Expected an expression #{t}"
+        {exp, rest} -> case rest do
+          [%Token{type: :closePar}|rest] -> {exp, rest}
+          _ -> raise "Unclosed #{t}"
+        end
+      end
+      _ -> {nil, l}
     end
   end
 

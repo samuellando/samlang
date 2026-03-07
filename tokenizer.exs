@@ -33,8 +33,8 @@ defmodule Tokenizer do
       [?e,?l,?s,?e|rest] -> {%Token{type: :keyword, value: "else", row: row, col: col}, row, col+4, rest} 
       [?f,?u,?n,?c|rest] -> {%Token{type: :keyword, value: "func", row: row, col: col}, row, col+4, rest} 
       [?r,?e,?t,?u,?r,?n|rest] -> {%Token{type: :keyword, value: "return", row: row, col: col}, row, col+6, rest} 
-      [?t,?r,?u,?e|rest] -> {%Token{type: :keyword, value: "true", row: row, col: col}, row, col+4, rest} 
-      [?f,?a,?l,?s,?e|rest] -> {%Token{type: :keyword, value: "false", row: row, col: col}, row, col+5, rest} 
+      [?t,?r,?u,?e|rest] -> {%Token{type: :keyword, value: true, row: row, col: col}, row, col+4, rest} 
+      [?f,?a,?l,?s,?e|rest] -> {%Token{type: :keyword, value: false, row: row, col: col}, row, col+5, rest} 
       _ -> {nil, row, col, chars}
     end
   end
@@ -106,6 +106,9 @@ defmodule Tokenizer do
   defp scan_non_keyword_token([?/|rest], row, col) do
       {%Token{type: :div, value: "/", row: row, col: col}, row, col+1, rest}
   end
+  defp scan_non_keyword_token([?%|rest], row, col) do
+      {%Token{type: :mod, value: "%", row: row, col: col}, row, col+1, rest}
+  end
   defp scan_non_keyword_token([?*|rest], row, col) do
       {%Token{type: :mul, value: "*", row: row, col: col}, row, col+1, rest}
   end
@@ -118,13 +121,16 @@ defmodule Tokenizer do
   defp scan_non_keyword_token([?,|rest], row, col) do
       {%Token{type: :coma, value: ",", row: row, col: col}, row, col+1, rest}
   end
+  defp scan_non_keyword_token([?!|rest], row, col) do
+      {%Token{type: :not, value: "!", row: row, col: col}, row, col+1, rest}
+  end
   defp scan_non_keyword_token([c|_], row, col) do
     raise "Unexpected token #{c} at #{row}:#{col}"
   end
 
   defp scan_number(l,row, col) do
     {n, rest} = _scan_number(l)
-    {%Token{type: :number, value: List.to_string(n), row: row, col: col}, row, col + length(n), rest}
+    {%Token{type: :number, value: String.to_integer(List.to_string(n)), row: row, col: col}, row, col + length(n), rest}
   end
   defp _scan_number([c|rest]) when c in ?0..?9 do
     {n, rest} = _scan_number(rest)
